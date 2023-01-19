@@ -1,0 +1,592 @@
+openapi: 3.0.3
+info:
+  description: API definition for the Grafana plugin simpod json datasource https://github.com/simPod/grafana-json-datasource
+  title: simPod JSON Datasource API
+  version: "0.1"
+servers:
+- url: /
+paths:
+  /:
+    get:
+      description: Used for "Test connection" on the datasource config page
+      operationId: api.endpoints.datasource_health
+      responses:
+        "200":
+          description: Positive health check
+      summary: Test connection
+      tags:
+      - Health Check
+  /metrics:
+    post:
+      description: "In `Panel > Queries` page. It will send the request to obtain\
+        \ the available metrics. The request body will carry the current metric and\
+        \ payload. In the `Builder` mode, if the `reloadMetric` value in the load\
+        \ configuration is true, the api will also be triggered when the value is\
+        \ modified / switched."
+      operationId: api.endpoints.list_metrics
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            example:
+              metric: DescribeCloudWatchDataList
+              payload:
+                namespace: AWS/RDS
+            schema:
+              $ref: '#/components/schemas/MetricObj'
+      responses:
+        "200":
+          content:
+            application/json:
+              examples:
+                "1":
+                  summary: Success
+                  value:
+                  - label: Describe cloudwatch data list
+                    value: DescribeCloudWatchDataList
+                    payloads:
+                    - label: Namespace
+                      name: namespace
+                      type: select
+                      placeholder: Please select namespace
+                      reloadMetric: true
+                      width: 10
+                      options:
+                      - label: EC2
+                        value: AWS/EC2
+                      - label: RDS
+                        value: AWS/RDS
+                    - name: metric
+                      type: select
+                    - name: instanceId
+                      type: select
+                  - value: DescribeCloudWatchDataLast
+                    payloads:
+                    - name: namespace
+                      type: select
+                    - name: metric
+                      type: select
+                    - name: instanceId
+                      type: multi-select
+              schema:
+                items:
+                  $ref: '#/components/schemas/api_endpoints_list_metrics_200_response_inner'
+                type: array
+          description: Success
+      summary: List available metrics
+      tags:
+      - Visualization
+  /metric-payload-options:
+    post:
+      description: "When the payload `type` is `select` or `multi-select` and the\
+        \ payload `options` configuration is empty, expanding the drop-down menu will\
+        \ trigger this API. The request body will carry the current metric and payload."
+      operationId: api.endpoints.list_metric_payload_options
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            example:
+              metric: DescribeCloudWatchDataList
+              payload:
+                namespace: AWS/RDS
+              name: metric
+            schema:
+              $ref: '#/components/schemas/api_endpoints_list_metric_payload_options_request'
+      responses:
+        "200":
+          content:
+            application/json:
+              examples:
+                "1":
+                  summary: Success
+                  value:
+                  - label: CPUUtilization
+                    value: CPUUtilization
+                  - label: DiskReadIOPS
+                    value: DiskReadIOPS
+                  - label: memory_freeutilization
+                    value: memory_freeutilization
+              schema:
+                items:
+                  $ref: '#/components/schemas/api_endpoints_list_metric_payload_options_200_response_inner'
+                type: array
+          description: Success
+      summary: List the available payload options.
+      tags:
+      - Visualization
+  /query:
+    post:
+      description: Returns metrics data
+      operationId: api.endpoints.query
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/api_endpoints_query_request'
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/api_endpoints_query_200_response_inner'
+                type: array
+          description: Can be a 'timeseries' or 'table' response
+      summary: Query
+      tags:
+      - Visualization
+  /variable:
+    post:
+      description: Returns data for Variable of type `Query`
+      operationId: api.endpoints.variable
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/api_endpoints_variable_request'
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/api_endpoints_variable_200_response'
+          description: Variable items
+      summary: Variable
+      tags:
+      - Variable
+  /tag-keys:
+    post:
+      description: returns possible keys for ad hoc filters
+      operationId: api.endpoints.tag_keys
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                example:
+                - type: string
+                  text: City
+                - type: string
+                  text: Country
+                items:
+                  $ref: '#/components/schemas/api_endpoints_tag_keys_200_response_inner'
+                type: array
+          description: List of ad hoc filter keys
+      summary: Keys for ad hoc filters
+      tags:
+      - Ad Hoc Filters
+  /tag-values:
+    post:
+      description: returns possible values for ad hoc filters
+      operationId: api.endpoints.tag_values
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/api_endpoints_tag_values_request'
+        required: true
+      responses:
+        "200":
+          description: A valid response
+      summary: Values for ad hoc filters
+      tags:
+      - Ad Hoc Filters
+components:
+  schemas:
+    dataframe:
+      properties:
+        fields:
+          items:
+            $ref: '#/components/schemas/dataframe_fields_inner'
+          type: array
+      required:
+      - fields
+      title: Dataframe
+      type: object
+    raw-time-frame:
+      properties:
+        from:
+          example: now-1h
+          type: string
+        to:
+          example: now
+          type: string
+      type: object
+    MetricObj:
+      example:
+        metric: metric
+        payload:
+          namespace: namespace
+      properties:
+        metric:
+          type: string
+        payload:
+          $ref: '#/components/schemas/Payload'
+      type: object
+    Payload:
+      description: "The currently selected/entered payload options and values. Key\
+        \ is the name of the payload, and value is the value of the payload."
+      example:
+        namespace: namespace
+      properties:
+        namespace:
+          type: string
+      type: object
+    api_endpoints_list_metrics_200_response_inner_payloads_inner_options_inner:
+      example:
+        label: label
+        value: value
+      properties:
+        label:
+          description: The label of the payload select option.
+          type: string
+        value:
+          description: The label of the payload value.
+          type: string
+      required:
+      - value
+      type: object
+    api_endpoints_list_metrics_200_response_inner_payloads_inner:
+      example:
+        reloadMetric: false
+        name: name
+        width: 0
+        options:
+        - label: label
+          value: value
+        - label: label
+          value: value
+        label: label
+        placeholder: placeholder
+        type: input
+      properties:
+        label:
+          description: "The label of the payload. If the value is empty, use the name\
+            \ as the label."
+          type: string
+        name:
+          description: 'The name of the payload. '
+          type: string
+        type:
+          default: input
+          description: |-
+            If the value is select, the UI of the payload is a radio box.
+            If the value is multi-select, the UI of the payload is a multi selection box.
+            if the value is input, the UI of the payload is an input box.
+            if the value is textarea, the UI of the payload is a multiline input box.
+            The default is input.
+          enum:
+          - select
+          - multi-select
+          - input
+          - textarea
+          type: string
+        placeholder:
+          description: Input box / selection box prompt information.
+          type: string
+        reloadMetric:
+          default: false
+          description: Whether to overload the metrics API after modifying the value
+            of the payload.
+          type: boolean
+        width:
+          description: Set the input / selection box width to a multiple of 8px.
+          type: integer
+        options:
+          description: "If the payload type is select / multi-select, the list is\
+            \ the configuration of the option list."
+          items:
+            $ref: '#/components/schemas/api_endpoints_list_metrics_200_response_inner_payloads_inner_options_inner'
+          type: array
+      required:
+      - name
+      type: object
+    api_endpoints_list_metrics_200_response_inner:
+      example:
+        payloads:
+        - reloadMetric: false
+          name: name
+          width: 0
+          options:
+          - label: label
+            value: value
+          - label: label
+            value: value
+          label: label
+          placeholder: placeholder
+          type: input
+        - reloadMetric: false
+          name: name
+          width: 0
+          options:
+          - label: label
+            value: value
+          - label: label
+            value: value
+          label: label
+          placeholder: placeholder
+          type: input
+        label: label
+        value: value
+      properties:
+        label:
+          description: "If the value is empty, use the value as the label"
+          type: string
+        value:
+          description: The value of the option.
+          type: string
+        payloads:
+          description: Configuration parameters of the payload.
+          items:
+            $ref: '#/components/schemas/api_endpoints_list_metrics_200_response_inner_payloads_inner'
+          type: array
+      required:
+      - payloads
+      - value
+      type: object
+    api_endpoints_list_metric_payload_options_request:
+      properties:
+        metric:
+          description: Current metric.
+          type: string
+        payload:
+          description: Current payload.
+          properties: {}
+          type: object
+        name:
+          description: The payload name of the option list needs to be obtained.
+          type: string
+      required:
+      - metric
+      - name
+      - payload
+      type: object
+    api_endpoints_list_metric_payload_options_200_response_inner:
+      example:
+        label: label
+        value: value
+      properties:
+        label:
+          description: "The label of the option in the drop-down box. If the value\
+            \ is empty, use the value as the label."
+          type: string
+        value:
+          description: The value of the option in the drop-down box.
+          type: string
+      required:
+      - value
+      type: object
+    api_endpoints_query_request_panelId:
+      oneOf:
+      - example: Q-1599986187842-0.164611811105138-0
+        type: string
+      - example: 1
+        type: number
+    api_endpoints_query_request_range:
+      properties:
+        from:
+          format: date-time
+          type: string
+        to:
+          format: date-time
+          type: string
+        raw:
+          $ref: '#/components/schemas/raw-time-frame'
+      type: object
+    api_endpoints_query_request_targets_inner:
+      properties:
+        target:
+          example: upper_25
+          type: string
+        refId:
+          type: string
+        payload:
+          description: arbitrary "additional data" the user can pass in
+          type: object
+      required:
+      - target
+      type: object
+    api_endpoints_query_request_adhocFilters_inner:
+      properties:
+        key:
+          example: City
+          type: string
+        operator:
+          example: =
+          type: string
+        value:
+          example: Berlin
+          type: string
+      type: object
+    api_endpoints_query_request:
+      properties:
+        panelId:
+          $ref: '#/components/schemas/api_endpoints_query_request_panelId'
+        range:
+          $ref: '#/components/schemas/api_endpoints_query_request_range'
+        rangeRaw:
+          $ref: '#/components/schemas/raw-time-frame'
+        interval:
+          example: 30s
+          type: string
+        intervalMs:
+          example: 5500
+          type: number
+        maxDataPoints:
+          example: 50
+          type: number
+        targets:
+          items:
+            $ref: '#/components/schemas/api_endpoints_query_request_targets_inner'
+          type: array
+        scopedVars:
+          example:
+            __interval:
+              text: 1s
+              value: 1s
+            __interval_ms:
+              text: 1000
+              value: 1000
+          type: object
+        adhocFilters:
+          items:
+            $ref: '#/components/schemas/api_endpoints_query_request_adhocFilters_inner'
+          type: array
+      type: object
+    api_endpoints_query_200_response_inner_anyOf:
+      description: timeseries case
+      properties:
+        target:
+          example: upper_25
+          type: string
+        datapoints:
+          example:
+          - - 2.5
+            - 1557385723416
+          - - 3.5
+            - 1557385731634
+          items:
+            description: First value is Metric value as a float. Second values is
+              unix timestamp in milliseconds
+            items:
+              type: number
+            maxItems: 2
+            minItems: 2
+            type: array
+          type: array
+      required:
+      - datapoints
+      - target
+      type: object
+    api_endpoints_query_200_response_inner_anyOf_1_columns_inner:
+      example:
+      - text: Time
+        type: time
+      - text: Country
+        type: string
+      - text: Value
+        type: number
+      properties:
+        text:
+          type: string
+        type:
+          type: string
+      required:
+      - text
+      type: object
+    api_endpoints_query_200_response_inner_anyOf_1_rows_inner:
+      anyOf:
+      - type: string
+      - type: number
+    api_endpoints_query_200_response_inner_anyOf_1:
+      description: table case
+      properties:
+        type:
+          enum:
+          - table
+          type: string
+        columns:
+          items:
+            $ref: '#/components/schemas/api_endpoints_query_200_response_inner_anyOf_1_columns_inner'
+          type: array
+        rows:
+          example:
+          - - 1557385723416
+            - SE
+            - 123
+          - - 1557385731634
+            - SE
+            - 456
+          items:
+            $ref: '#/components/schemas/api_endpoints_query_200_response_inner_anyOf_1_rows_inner'
+          type: array
+      required:
+      - columns
+      - rows
+      - type
+      type: object
+    api_endpoints_query_200_response_inner:
+      anyOf:
+      - $ref: '#/components/schemas/api_endpoints_query_200_response_inner_anyOf'
+      - $ref: '#/components/schemas/api_endpoints_query_200_response_inner_anyOf_1'
+    api_endpoints_variable_request_payload:
+      properties:
+        target:
+          type: string
+        variables:
+          type: object
+      required:
+      - target
+      type: object
+    api_endpoints_variable_request:
+      properties:
+        payload:
+          $ref: '#/components/schemas/api_endpoints_variable_request_payload'
+        range:
+          $ref: '#/components/schemas/api_endpoints_query_request_range'
+      type: object
+    api_endpoints_variable_200_response_oneOf_inner:
+      properties:
+        __text:
+          type: string
+        __value:
+          type: string
+      required:
+      - text
+      - value
+      type: object
+    api_endpoints_variable_200_response:
+      oneOf:
+      - items:
+          $ref: '#/components/schemas/api_endpoints_variable_200_response_oneOf_inner'
+        type: array
+      - $ref: '#/components/schemas/dataframe'
+    api_endpoints_tag_keys_200_response_inner:
+      properties:
+        type:
+          type: string
+        text:
+          type: string
+      type: object
+    api_endpoints_tag_values_request:
+      properties:
+        key:
+          type: string
+      required:
+      - key
+      type: object
+    dataframe_fields_inner:
+      properties:
+        name:
+          type: string
+        values:
+          items: {}
+          type: array
+      required:
+      - name
+      - values
+      type: object
+
